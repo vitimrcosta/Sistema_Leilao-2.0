@@ -81,7 +81,7 @@ venv\Scripts\activate     # Windows
 
 3. **Instale as dependências**
 ```bash
-pip install sqlalchemy email-validator pytest
+pip install -r requirements.txt
 ```
 
 4. **Configure o banco de dados**
