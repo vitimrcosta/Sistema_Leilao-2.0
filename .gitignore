@@ -1,0 +1,42 @@
+# Ambiente virtual
+venv/
+.venv/
+ENV/
+env/
+
+# Arquivos do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de configuração sensíveis
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs e arquivos gerados
+*.log
+*.sqlite
+leiloes.log
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de build/distribuição
+build/
+dist/
+*.egg-info/
+
+# Arquivo de teste local
+debug_idade.py
+debug_leilao_lance.py
+update_test_imports.py
