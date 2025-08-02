@@ -85,8 +85,12 @@ class TestEmailService:
             permitir_passado=True
         )
         
-        # Abrir leilão
+        # IMPORTANTE: Abrir leilão ANTES de fazer lances
         leilao_service.atualizar_status_leiloes(enviar_emails=False)
+        
+        # Verificar se o leilão está aberto
+        leilao_atualizado = leilao_service.obter_leilao_por_id(leilao.id)
+        assert leilao_atualizado.status == StatusLeilao.ABERTO
         
         # Fazer lances
         lance_service.criar_lance(p1.id, leilao.id, 900.0)  # João
@@ -134,25 +138,49 @@ class TestEmailService:
             "10987654321", "Maria", "maria@teste.com", datetime(1985, 5, 15)
         )
         
-        # Criar 2 leilões finalizados
+        # Criar 2 leilões que vão ser abertos
         leilao1 = leilao_service.criar_leilao(
             "Produto 1", 100.0,
-            datetime.now() - timedelta(hours=2),
-            datetime.now() - timedelta(hours=1),
+            datetime.now() - timedelta(hours=2),  # Já começou
+            datetime.now() + timedelta(minutes=5),  # Ainda não terminou
             permitir_passado=True
         )
         
         leilao2 = leilao_service.criar_leilao(
             "Produto 2", 200.0,
-            datetime.now() - timedelta(hours=2),
-            datetime.now() - timedelta(hours=1),
+            datetime.now() - timedelta(hours=2),  # Já começou
+            datetime.now() + timedelta(minutes=10),  # Ainda não terminou
             permitir_passado=True
         )
         
-        # Fazer lances e finalizar leilões SEM envio de email
+        # IMPORTANTE: Abrir os leilões ANTES de fazer lances
+        leilao_service.atualizar_status_leiloes(enviar_emails=False)
+        
+        # Verificar se os leilões estão abertos
+        leilao1_atualizado = leilao_service.obter_leilao_por_id(leilao1.id)
+        leilao2_atualizado = leilao_service.obter_leilao_por_id(leilao2.id)
+        assert leilao1_atualizado.status == StatusLeilao.ABERTO
+        assert leilao2_atualizado.status == StatusLeilao.ABERTO
+        
+        # Fazer lances
         lance_service.criar_lance(p1.id, leilao1.id, 150.0)  # João vence leilão1
         lance_service.criar_lance(p2.id, leilao2.id, 250.0)  # Maria vence leilão2
         
+        # Forçar finalização dos leilões
+        session = clean_database.get_session()
+        
+        # Finalizar leilão 1
+        leilao1_db = session.query(Leilao).filter(Leilao.id == leilao1.id).first()
+        leilao1_db.data_termino = datetime.now() - timedelta(minutes=1)
+        
+        # Finalizar leilão 2
+        leilao2_db = session.query(Leilao).filter(Leilao.id == leilao2.id).first()
+        leilao2_db.data_termino = datetime.now() - timedelta(minutes=1)
+        
+        session.commit()
+        session.close()
+        
+        # Finalizar leilões SEM envio de email primeiro
         leilao_service.atualizar_status_leiloes(enviar_emails=False)
         
         # Agora notificar vencedores pendentes
@@ -190,16 +218,32 @@ class TestEmailService:
             "12345678901", "João", "joao@teste.com", datetime(1990, 1, 1)
         )
         
-        # Criar leilão finalizado
+        # Criar leilão que vai ser aberto
         leilao = leilao_service.criar_leilao(
             "Produto Finalizado", 100.0,
-            datetime.now() - timedelta(hours=1),
-            datetime.now() - timedelta(minutes=30),
+            datetime.now() - timedelta(hours=1),  # Já começou
+            datetime.now() + timedelta(minutes=5),  # Ainda não terminou
             permitir_passado=True
         )
         
-        # Fazer lance e finalizar
+        # IMPORTANTE: Abrir leilão ANTES de fazer lance
+        leilao_service.atualizar_status_leiloes(enviar_emails=False)
+        
+        # Verificar se o leilão está aberto
+        leilao_atualizado = leilao_service.obter_leilao_por_id(leilao.id)
+        assert leilao_atualizado.status == StatusLeilao.ABERTO
+        
+        # Fazer lance
         lance_service.criar_lance(participante.id, leilao.id, 150.0)
+        
+        # Forçar finalização
+        session = clean_database.get_session()
+        leilao_db = session.query(Leilao).filter(Leilao.id == leilao.id).first()
+        leilao_db.data_termino = datetime.now() - timedelta(minutes=1)
+        session.commit()
+        session.close()
+        
+        # Finalizar sem envio de email
         leilao_service.atualizar_status_leiloes(enviar_emails=False)
         
         # Buscar leilões que precisam notificar
