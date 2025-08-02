@@ -24,7 +24,6 @@ Um sistema completo de leilões desenvolvido em Python com SQLAlchemy, implement
 - **Notificações por Email**: Sistema automático de notificação para vencedores
 - **Estados Automáticos**: Controle automático de estados dos leilões (INATIVO → ABERTO → FINALIZADO/EXPIRADO)
 - **Validações Robustas**: Validação de CPF, email, datas e valores
-- **Relatórios e Estatísticas**: Sistema completo de relatórios e rankings
 
 ## 🛠 Tecnologias
 
