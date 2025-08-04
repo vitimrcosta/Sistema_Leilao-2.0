@@ -6,6 +6,28 @@ from src.services.leilao_service import LeilaoService
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+# NOVO: Forçar modo teste para todos os testes
+@pytest.fixture(scope="session", autouse=True)
+def force_test_mode():
+    """
+    Força modo teste para todos os testes automaticamente
+    autouse=True significa que é executado automaticamente
+    """
+    # Salvar valor original
+    original_email_mode = os.environ.get('EMAIL_MODE')
+    
+    # Forçar modo teste durante os testes
+    os.environ['EMAIL_MODE'] = 'TEST'
+    
+    yield  # Executar testes
+    
+    # Restaurar valor original
+    if original_email_mode is not None:
+        os.environ['EMAIL_MODE'] = original_email_mode
+    else:
+        if 'EMAIL_MODE' in os.environ:
+            del os.environ['EMAIL_MODE']
+
 # Importar nossos módulos
 import sys
 sys.path.append('..')  # Para importar do diretório pai

@@ -1,0 +1,12 @@
+[run]
+source = src      # Analisa apenas a pasta src/
+omit =            # Ignora os arquivos/pastas listados
+    tests/*       # Ignora todos os arquivos de teste
+    manual_*.py   # Ignora arquivos manuais
+    debug_*.py    # Ignora arquivos de debug
+    main.py       # Ignora arquivos específicos
+    *config*.py
+    *test_*.py
+    *debug*.py
+    scripts/*
+    venv/*    
