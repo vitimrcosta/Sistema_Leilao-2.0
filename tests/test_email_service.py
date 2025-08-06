@@ -2,6 +2,8 @@ import pytest
 from datetime import datetime, timedelta
 from src.models import Leilao, Participante, Lance, StatusLeilao
 from src.services import EmailService, LeilaoService, ParticipanteService, LanceService
+from src.utils import ValidationError  # ← ADICIONAR ESTA LINHA
+from unittest.mock import patch, MagicMock
 
 class TestEmailService:
     """Testes para o EmailService"""
@@ -786,11 +788,10 @@ class TestEmailServiceLinhasEspecificas:
     
     def test_smtp_real_diferentes_tipos_erro(self, clean_database):
         """
-        Testa diferentes tipos de erro SMTP para cobertura completa
+        Testa diferentes tipos de erro SMTP para cobertura completa - versão simples
         """
-        import smtplib
         from unittest.mock import patch, MagicMock
-        
+    
         email_service = EmailService(
             smtp_server="smtp.gmail.com",
             smtp_port=587,
@@ -798,44 +799,57 @@ class TestEmailServiceLinhasEspecificas:
             email_senha="senha_teste",
             modo_producao=True
         )
-        
+    
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
-        
+    
         msg = MIMEMultipart()
         msg['From'] = "teste@gmail.com"
         msg['To'] = "destino@teste.com"
         msg['Subject'] = "Teste"
         msg.attach(MIMEText("Teste", 'plain'))
-        
-        # Teste 1: Erro de conexão
-        with patch('smtplib.SMTP', side_effect=smtplib.SMTPConnectError("Não consegue conectar")):
-            sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
-            assert sucesso is False
-        
-        # Teste 2: Erro de autenticação
-        mock_server_auth_error = MagicMock()
-        mock_server_auth_error.__enter__.return_value = mock_server_auth_error
-        mock_server_auth_error.__exit__.return_value = None
-        mock_server_auth_error.starttls.return_value = None
-        mock_server_auth_error.login.side_effect = smtplib.SMTPAuthenticationError(535, "Auth failed")
-        
-        with patch('smtplib.SMTP', return_value=mock_server_auth_error):
-            sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
-            assert sucesso is False
-        
-        # Teste 3: Erro no envio
-        mock_server_send_error = MagicMock()
-        mock_server_send_error.__enter__.return_value = mock_server_send_error
-        mock_server_send_error.__exit__.return_value = None
-        mock_server_send_error.starttls.return_value = None
-        mock_server_send_error.login.return_value = None
-        mock_server_send_error.sendmail.side_effect = smtplib.SMTPRecipientsRefused("Destinatário rejeitado")
-        
-        with patch('smtplib.SMTP', return_value=mock_server_send_error):
+    
+        # Teste 1: Erro na criação da conexão SMTP
+        with patch('smtplib.SMTP', side_effect=Exception("Erro de conexão")):
             sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
             assert sucesso is False
     
+        # Teste 2: Erro no starttls
+        mock_server = MagicMock()
+        mock_server.__enter__.return_value = mock_server
+        mock_server.__exit__.return_value = None
+        mock_server.starttls.side_effect = Exception("Erro no STARTTLS")
+    
+        with patch('smtplib.SMTP', return_value=mock_server):
+            sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
+            assert sucesso is False
+            mock_server.starttls.assert_called_once()
+    
+        # Teste 3: Erro no login
+        mock_server2 = MagicMock()
+        mock_server2.__enter__.return_value = mock_server2
+        mock_server2.__exit__.return_value = None
+        mock_server2.starttls.return_value = None
+        mock_server2.login.side_effect = Exception("Erro de autenticação")
+    
+        with patch('smtplib.SMTP', return_value=mock_server2):
+            sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
+            assert sucesso is False
+            mock_server2.login.assert_called_once()
+    
+        # Teste 4: Erro no sendmail
+        mock_server3 = MagicMock()
+        mock_server3.__enter__.return_value = mock_server3
+        mock_server3.__exit__.return_value = None
+        mock_server3.starttls.return_value = None
+        mock_server3.login.return_value = None
+        mock_server3.sendmail.side_effect = Exception("Erro no envio")
+    
+        with patch('smtplib.SMTP', return_value=mock_server3):
+            sucesso = email_service._enviar_email_real(msg, "destino@teste.com")
+            assert sucesso is False
+            mock_server3.sendmail.assert_called_once()
+
     def test_cobertura_completa_envio_vencedor_modo_producao(self, clean_database):
         """
         Teste integrado para cobrir fluxo completo em modo produção
@@ -931,3 +945,4 @@ class TestEmailServiceLinhasEspecificas:
             mock_server.starttls.assert_called_once()
             mock_server.login.assert_called_once()
             mock_server.sendmail.assert_called_once()
+

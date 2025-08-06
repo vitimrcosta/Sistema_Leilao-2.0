@@ -517,3 +517,257 @@ class TestParticipanteServiceValidacoes:
         # Todos os participantes
         todos = service.listar_participantes(tem_lances=None)
         assert len(todos) == 3
+
+class TestParticipanteServiceCoberturaEspecifica:
+    """Testes específicos para cobrir as linhas exatas sem cobertura"""
+    
+    def test_atualizar_cpf_duplicado_outro_participante(self, clean_database):
+        """
+        Teste para cobrir as linhas 76-83 - caso de CPF duplicado
+        Especificamente a linha que faz raise ValidationError para CPF duplicado
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar dois participantes
+        participante1 = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        participante2 = service.criar_participante(
+            cpf="10987654321",
+            nome="Maria Santos",
+            email="maria@teste.com",
+            data_nascimento=datetime(1985, 5, 15)
+        )
+        
+        # Tentar atualizar CPF do participante1 para o CPF do participante2
+        # Isso deve executar as linhas 76-83 e dar erro na verificação de duplicação
+        with pytest.raises(ValidationError, match="CPF 10987654321 já está cadastrado para outro participante"):
+            service.atualizar_participante(
+                participante_id=participante1.id,
+                cpf="10987654321"  # CPF que já pertence ao participante2
+            )
+    
+    def test_atualizar_email_duplicado_outro_participante(self, clean_database):
+        """
+        Teste para cobrir a linha 95 - caso de email duplicado
+        Especificamente o raise ValidationError para email duplicado
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar dois participantes
+        participante1 = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva", 
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        participante2 = service.criar_participante(
+            cpf="10987654321",
+            nome="Maria Santos",
+            email="maria@teste.com", 
+            data_nascimento=datetime(1985, 5, 15)
+        )
+        
+        # Tentar atualizar email do participante1 para o email do participante2
+        # Isso deve executar a linha 95 com o raise ValidationError
+        with pytest.raises(ValidationError, match="Email maria@teste.com já está cadastrado para outro participante"):
+            service.atualizar_participante(
+                participante_id=participante1.id,
+                email="maria@teste.com"  # Email que já pertence ao participante2
+            )
+    
+    def test_atualizar_data_nascimento(self, clean_database):
+        """
+        Teste para cobrir a linha 99 - atualização de data_nascimento
+        Especificamente a linha: participante.data_nascimento = ValidadorParticipante.validar_data_nascimento(data_nascimento)
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante inicial
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com", 
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Atualizar apenas a data de nascimento
+        # Isso deve executar a linha 99 que valida e atribui a nova data
+        nova_data = datetime(1985, 12, 25)
+        participante_atualizado = service.atualizar_participante(
+            participante_id=participante.id,
+            data_nascimento=nova_data
+        )
+        
+        # Verificar se a data foi atualizada corretamente
+        assert participante_atualizado.data_nascimento == nova_data
+        # Outros campos devem permanecer iguais
+        assert participante_atualizado.cpf == "12345678901"
+        assert participante_atualizado.nome == "João Silva"
+        assert participante_atualizado.email == "joao@teste.com"
+    
+    def test_verificar_pode_alterar_excluir_participante_inexistente(self, clean_database):
+        """
+        Teste para cobrir a linha 224 - participante não encontrado
+        Especificamente: return False, "Participante não encontrado"
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Tentar verificar participante que não existe
+        # Isso deve executar a linha 224 que retorna o erro de participante não encontrado
+        pode_alterar, motivo = service.verificar_pode_alterar_excluir(99999)
+        
+        assert pode_alterar is False
+        assert motivo == "Participante não encontrado"
+
+class TestParticipanteServiceCoberturaComplementar:
+    """Testes complementares para garantir cobertura completa das funcionalidades testadas"""
+    
+    def test_atualizar_cpf_valido_sucesso(self, clean_database):
+        """
+        Teste complementar para cobrir o caminho de sucesso da atualização de CPF
+        Garante que as linhas 76-83 também são executadas no caso de sucesso
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Atualizar CPF para um válido e disponível
+        # Isso executa as linhas 76-83 no caminho de sucesso
+        participante_atualizado = service.atualizar_participante(
+            participante_id=participante.id,
+            cpf="10987654321"  # CPF válido e disponível
+        )
+        
+        # Verificar se o CPF foi atualizado
+        assert participante_atualizado.cpf == "10987654321"
+    
+    def test_atualizar_email_valido_sucesso(self, clean_database):
+        """
+        Teste complementar para cobrir o caminho de sucesso da atualização de email
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Atualizar email para um válido e disponível
+        participante_atualizado = service.atualizar_participante(
+            participante_id=participante.id,
+            email="novo.email@teste.com"  # Email válido e disponível
+        )
+        
+        # Verificar se o email foi atualizado
+        assert participante_atualizado.email == "novo.email@teste.com"
+    
+    def test_atualizar_data_nascimento_invalida(self, clean_database):
+        """
+        Teste para garantir que a validação de data de nascimento funciona corretamente
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Tentar atualizar com data de nascimento inválida (menor de 18 anos)
+        data_menor_idade = datetime.now() - timedelta(days=365*17)  # 17 anos
+        
+        with pytest.raises(ValidationError, match="Participante deve ter pelo menos 18 anos"):
+            service.atualizar_participante(
+                participante_id=participante.id,
+                data_nascimento=data_menor_idade
+            )
+    
+    def test_verificar_pode_alterar_excluir_participante_existente_sem_lances(self, clean_database):
+        """
+        Teste complementar para verificar participante que existe e pode ser alterado
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Verificar participante que existe e não tem lances
+        pode_alterar, motivo = service.verificar_pode_alterar_excluir(participante.id)
+        
+        assert pode_alterar is True
+        assert motivo == "Participante pode ser alterado/excluído"
+    
+    def test_verificar_pode_alterar_excluir_participante_com_lances(self, clean_database):
+        """
+        Teste para verificar participante que tem lances e não pode ser alterado
+        """
+        service = ParticipanteService()
+        service.db_config = clean_database
+        
+        # Criar participante
+        participante = service.criar_participante(
+            cpf="12345678901",
+            nome="João Silva",
+            email="joao@teste.com",
+            data_nascimento=datetime(1990, 1, 1)
+        )
+        
+        # Criar leilão e lance
+        session = clean_database.get_session()
+        
+        leilao = Leilao(
+            nome="Leilão Teste",
+            lance_minimo=100.0,
+            data_inicio=datetime.now() + timedelta(hours=1),
+            data_termino=datetime.now() + timedelta(days=1),
+            status=StatusLeilao.INATIVO
+        )
+        session.add(leilao)
+        session.commit()
+        session.refresh(leilao)
+        
+        lance = Lance(
+            valor=150.0,
+            leilao_id=leilao.id,
+            participante_id=participante.id
+        )
+        session.add(lance)
+        session.commit()
+        session.close()
+        
+        # Verificar participante que tem lances
+        pode_alterar, motivo = service.verificar_pode_alterar_excluir(participante.id)
+        
+        assert pode_alterar is False
+        assert "possui 1 lance(s)" in motivo
+        assert "não pode ser alterado/excluído" in motivo
