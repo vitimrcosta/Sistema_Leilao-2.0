@@ -1098,3 +1098,257 @@ class TestLanceServiceCasosEspeciais:
         assert stats_com_lances['menor_lance'] == 600.0
         assert stats_com_lances['lance_atual'] == 800.0
         assert stats_com_lances['total_lances'] == 3
+
+class TestLanceServiceLinha121:
+
+    def test_linha_121_exata(self, clean_database):
+        """Teste ultra-específico para cobrir exatamente a linha 121"""
+        service = LanceService()
+        service.db_config = clean_database
+        
+        # ID que não existe
+        non_existent_id = 99999
+        
+        # Verificar se a mensagem de erro é exatamente a mesma
+        with pytest.raises(ValidationError) as excinfo:
+            service.obter_lances_leilao(non_existent_id)
+        
+        # Verificação exata da mensagem
+        assert str(excinfo.value) == f"Leilão com ID {non_existent_id} não encontrado"
+
+
+    """Teste específico para cobrir a linha 121 do lance_service.py"""
+    
+    def test_obter_lances_leilao_inexistente_linha121(self, clean_database):
+        """
+        Teste específico para cobrir EXATAMENTE a linha 121:
+        raise ValidationError(f"Leilão com ID {leilao_id} não encontrado")
+        
+        Esta linha está no método obter_lances_leilao quando leilao é None
+        """
+        lance_service = LanceService()
+        lance_service.db_config = clean_database
+        
+        # Tentar obter lances de um leilão que não existe
+        # Isso deve executar EXATAMENTE a linha 121 do lance_service.py
+        with pytest.raises(ValidationError, match="Leilão com ID 99999 não encontrado"):
+            lance_service.obter_lances_leilao(99999)
+    
+    def test_obter_lances_leilao_diferentes_ordens(self, clean_database):
+        """
+        Teste adicional para garantir cobertura completa do método obter_lances_leilao
+        Testa tanto ordem crescente quanto decrescente para cobrir todas as linhas
+        """
+        from src.services.participante_service import ParticipanteService
+        from src.services.leilao_service import LeilaoService
+        
+        # Setup
+        participante_service = ParticipanteService()
+        participante_service.db_config = clean_database
+        
+        leilao_service = LeilaoService()
+        leilao_service.db_config = clean_database
+        
+        lance_service = LanceService()
+        lance_service.db_config = clean_database
+        
+        # Criar participantes
+        p1 = participante_service.criar_participante(
+            "12345678901", "João", "joao@teste.com", datetime(1990, 1, 1)
+        )
+        
+        p2 = participante_service.criar_participante(
+            "10987654321", "Maria", "maria@teste.com", datetime(1985, 5, 15)
+        )
+        
+        # Criar leilão
+        leilao = leilao_service.criar_leilao(
+            "Teste Linha 121", 100.0,
+            datetime.now() - timedelta(minutes=30),
+            datetime.now() + timedelta(hours=1),
+            permitir_passado=True
+        )
+        
+        leilao_service.atualizar_status_leiloes()
+        
+        # CORRIGIDO: Criar lances em sequência VÁLIDA e crescente
+        lance_service.criar_lance(p1.id, leilao.id, 150.0)  # João: 150
+        lance_service.criar_lance(p2.id, leilao.id, 200.0)  # Maria: 200 (maior que 150)
+        lance_service.criar_lance(p1.id, leilao.id, 250.0)  # João: 250 (maior que 200)
+        
+        # Testar ordem crescente (True) - padrão
+        lances_crescente = lance_service.obter_lances_leilao(leilao.id, ordem_crescente=True)
+        assert len(lances_crescente) == 3
+        
+        # Testar ordem decrescente (False)
+        lances_decrescente = lance_service.obter_lances_leilao(leilao.id, ordem_crescente=False)
+        assert len(lances_decrescente) == 3
+        
+        # Verificar que as ordens são realmente diferentes
+        assert lances_crescente[0].valor <= lances_crescente[1].valor <= lances_crescente[2].valor  # Crescente
+        assert lances_decrescente[0].valor >= lances_decrescente[1].valor >= lances_decrescente[2].valor  # Decrescente
+        
+class TestLanceServiceCoberturaAdicional:
+    """Testes adicionais para garantir cobertura completa"""
+    
+    def test_criar_lance_sequencia_valida_completa(self, clean_database):
+        """
+        Teste para garantir cobertura completa do método criar_lance
+        com uma sequência válida e completa de lances
+        """
+        from src.services.participante_service import ParticipanteService
+        from src.services.leilao_service import LeilaoService
+        
+        # Setup completo
+        participante_service = ParticipanteService()
+        participante_service.db_config = clean_database
+        
+        leilao_service = LeilaoService()
+        leilao_service.db_config = clean_database
+        
+        lance_service = LanceService()
+        lance_service.db_config = clean_database
+        
+        # Criar participantes
+        p1 = participante_service.criar_participante(
+            "12345678901", "João", "joao@teste.com", datetime(1990, 1, 1)
+        )
+        
+        p2 = participante_service.criar_participante(
+            "10987654321", "Maria", "maria@teste.com", datetime(1985, 5, 15)
+        )
+        
+        # Criar leilão
+        leilao = leilao_service.criar_leilao(
+            "Cobertura Completa", 100.0,
+            datetime.now() - timedelta(minutes=30),
+            datetime.now() + timedelta(hours=1),
+            permitir_passado=True
+        )
+        
+        leilao_service.atualizar_status_leiloes()
+        
+        # Sequência completa de lances válidos
+        # 1. Primeiro lance (sem último lance anterior)
+        lance1 = lance_service.criar_lance(p1.id, leilao.id, 150.0)
+        assert lance1.valor == 150.0
+        assert lance1.participante_id == p1.id
+        
+        # 2. Segundo lance (participante diferente, valor maior)
+        lance2 = lance_service.criar_lance(p2.id, leilao.id, 200.0)
+        assert lance2.valor == 200.0
+        assert lance2.participante_id == p2.id
+        
+        # 3. Terceiro lance (primeiro participante novamente, valor maior)
+        lance3 = lance_service.criar_lance(p1.id, leilao.id, 250.0)
+        assert lance3.valor == 250.0
+        assert lance3.participante_id == p1.id
+        
+        # Verificar que todos os lances foram salvos
+        todos_lances = lance_service.obter_lances_leilao(leilao.id)
+        assert len(todos_lances) == 3
+    
+    def test_todas_validacoes_criar_lance(self, clean_database):
+        """
+        Teste para cobrir todas as validações do método criar_lance
+        """
+        from src.services.participante_service import ParticipanteService
+        from src.services.leilao_service import LeilaoService
+        
+        # Setup
+        participante_service = ParticipanteService()
+        participante_service.db_config = clean_database
+        
+        leilao_service = LeilaoService()
+        leilao_service.db_config = clean_database
+        
+        lance_service = LanceService()
+        lance_service.db_config = clean_database
+        
+        # 1. Teste: Valor inválido (já testado, mas para completude)
+        with pytest.raises(ValidationError, match="Valor do lance deve ser maior que zero"):
+            lance_service.criar_lance(1, 1, -50.0)
+        
+        # 2. Teste: Participante inexistente (já testado)
+        with pytest.raises(ValidationError, match="Participante com ID 99999 não encontrado"):
+            lance_service.criar_lance(99999, 1, 100.0)
+        
+        # Criar participante para próximos testes
+        participante = participante_service.criar_participante(
+            "12345678901", "João", "joao@teste.com", datetime(1990, 1, 1)
+        )
+        
+        # 3. Teste: Leilão inexistente
+        with pytest.raises(ValidationError, match="Leilão com ID 99999 não encontrado"):
+            lance_service.criar_lance(participante.id, 99999, 100.0)
+        
+        # Criar leilão INATIVO para próximos testes
+        leilao_inativo = leilao_service.criar_leilao(
+            "Leilão Inativo", 100.0,
+            datetime.now() + timedelta(hours=1),  # Futuro - fica INATIVO
+            datetime.now() + timedelta(days=1)
+        )
+        
+        # 4. Teste: Leilão não aberto
+        with pytest.raises(ValidationError, match="Lances só podem ser realizados em leilões ABERTOS"):
+            lance_service.criar_lance(participante.id, leilao_inativo.id, 150.0)
+        
+        # Criar leilão aberto para próximos testes
+        leilao_aberto = leilao_service.criar_leilao(
+            "Leilão Aberto", 200.0,
+            datetime.now() - timedelta(minutes=30),
+            datetime.now() + timedelta(hours=1),
+            permitir_passado=True
+        )
+        
+        leilao_service.atualizar_status_leiloes()
+        
+        # 5. Teste: Lance menor que mínimo
+        with pytest.raises(ValidationError, match="Lance deve ser pelo menos R\\$ 200.00"):
+            lance_service.criar_lance(participante.id, leilao_aberto.id, 150.0)
+        
+        # Fazer um lance válido
+        lance_service.criar_lance(participante.id, leilao_aberto.id, 250.0)
+        
+        # 6. Teste: Lance menor ou igual ao último
+        with pytest.raises(ValidationError, match="Lance deve ser maior que R\\$ 250.00"):
+            lance_service.criar_lance(participante.id, leilao_aberto.id, 250.0)  # Igual
+        
+        with pytest.raises(ValidationError, match="Lance deve ser maior que R\\$ 250.00"):
+            lance_service.criar_lance(participante.id, leilao_aberto.id, 200.0)  # Menor
+        
+        # 7. Teste: Mesmo participante consecutivo
+        with pytest.raises(ValidationError, match="O mesmo participante não pode efetuar dois lances consecutivos"):
+            lance_service.criar_lance(participante.id, leilao_aberto.id, 300.0)
+        
+        print("✅ Todas as validações do criar_lance foram testadas!")
+
+# Teste adicional para verificar especificamente a linha 121
+class TestEspecificoLinha121:
+    """Classe focada APENAS na linha 121"""
+    
+    def test_linha_121_obter_lances_leilao_inexistente(self, clean_database):
+        """
+        Teste ultra-específico para a linha 121 do lance_service.py
+        
+        Linha 121: raise ValidationError(f"Leilão com ID {leilao_id} não encontrado")
+        
+        Esta linha está no método obter_lances_leilao, dentro do bloco:
+        if not leilao:
+            raise ValidationError(f"Leilão com ID {leilao_id} não encontrado")  # <- LINHA 121
+        """
+        lance_service = LanceService()
+        lance_service.db_config = clean_database
+        
+        # Este comando deve executar EXATAMENTE a linha 121
+        with pytest.raises(ValidationError) as exc_info:
+            lance_service.obter_lances_leilao(12345)  # Leilão inexistente
+        
+        # Verificar a mensagem exata
+        assert "Leilão com ID 12345 não encontrado" in str(exc_info.value)
+        
+        # Tentar com outro ID para garantir que a linha é sempre executada
+        with pytest.raises(ValidationError) as exc_info2:
+            lance_service.obter_lances_leilao(99999)
+        
+        assert "Leilão com ID 99999 não encontrado" in str(exc_info2.value)        

@@ -9,4 +9,4 @@ omit =            # Ignora os arquivos/pastas listados
     *test_*.py
     *debug*.py
     scripts/*
-    venv/*    
+    venv/*

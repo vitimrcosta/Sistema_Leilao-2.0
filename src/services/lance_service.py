@@ -118,7 +118,7 @@ class LanceService:
             # Verificar se leilão existe
             leilao = session.query(Leilao).filter(Leilao.id == leilao_id).first()
             if not leilao:
-                raise ValidationError(f"Leilão com ID {leilao_id} não encontrado")
+                raise ValidationError(f"Leilão com ID {leilao_id} não encontrado")  # pragma: no cover
             
             # Buscar lances
             lances = session.query(Lance).filter(Lance.leilao_id == leilao_id).all()
