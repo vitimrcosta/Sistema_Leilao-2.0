@@ -58,11 +58,121 @@ venv\Scripts\activate     # Windows
 # Instale as dependências
 pip install -r requirements.txt
 
+# Configure as variáveis de ambiente (veja seção abaixo)
+cp .env.example .env
+# Edite o arquivo .env com suas configurações
+
 # Configure o banco
 python -c "from src.repositories.database import db_config; db_config.create_tables()"
 
 # Execute os testes
 pytest --cov=src -v
+```
+
+## ⚙️ Configuração do Ambiente (.env)
+
+O sistema utiliza variáveis de ambiente para configurar o serviço de email. Crie um arquivo `.env` na raiz do projeto:
+
+```bash
+# ===================================================================
+# CONFIGURAÇÕES DE EMAIL
+# ===================================================================
+
+# Credenciais do seu provedor de email
+EMAIL_USUARIO=seu.email@gmail.com
+EMAIL_SENHA=sua_senha_ou_app_password
+EMAIL_DESTINATARIO_TESTE=email.para.testes@gmail.com
+
+# Configurações do servidor SMTP
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# ===================================================================
+# CONTROLE DE MODO DE EMAIL
+# ===================================================================
+
+# Controla como o sistema de email funciona:
+# - TEST: Sempre simula emails (seguro para desenvolvimento)
+# - PRODUCTION: Sempre envia emails reais (cuidado!)
+# - AUTO: Detecta automaticamente baseado nas credenciais (padrão)
+
+EMAIL_MODE=TEST
+```
+
+### 📧 Configurações por Provedor
+
+**Gmail:**
+```bash
+EMAIL_USUARIO=seu.email@gmail.com
+EMAIL_SENHA=sua_app_password  # Use App Password, não senha normal
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+```
+
+**Outlook/Hotmail:**
+```bash
+EMAIL_USUARIO=seu.email@outlook.com
+EMAIL_SENHA=sua_senha
+SMTP_SERVER=smtp-mail.outlook.com
+SMTP_PORT=587
+```
+
+**Yahoo:**
+```bash
+EMAIL_USUARIO=seu.email@yahoo.com
+EMAIL_SENHA=sua_senha
+SMTP_SERVER=smtp.mail.yahoo.com
+SMTP_PORT=587
+```
+
+### 🔒 Modos de Operação
+
+| Modo | Descrição | Quando Usar |
+|------|-----------|-------------|
+| `TEST` | Simula envio de emails (não envia realmente) | **Desenvolvimento e testes** |
+| `PRODUCTION` | Envia emails reais | **Produção e testes manuais** |
+| `AUTO` | Detecta automaticamente baseado nas credenciais | **Flexibilidade automática** |
+
+### 🛡️ Segurança
+
+**⚠️ IMPORTANTE:**
+- **Nunca** commite o arquivo `.env` no git
+- Use **App Passwords** para Gmail (não a senha normal)
+- Para desenvolvimento, sempre use `EMAIL_MODE=TEST`
+- O arquivo `.env` já está no `.gitignore`
+
+### 📋 Exemplo Completo (.env)
+
+```bash
+# ===================================================================
+# CONFIGURAÇÕES DE EMAIL
+# ===================================================================
+EMAIL_USUARIO=sistema.leiloes@gmail.com
+EMAIL_SENHA=abcd1234efgh5678
+EMAIL_DESTINATARIO_TESTE=testes@gmail.com
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# ===================================================================
+# CONTROLE DE MODO DE EMAIL
+# ===================================================================
+EMAIL_MODE=TEST
+
+# ===================================================================
+# EXEMPLOS POR AMBIENTE:
+# ===================================================================
+
+# DESENVOLVIMENTO (recomendado):
+# EMAIL_MODE=TEST
+
+# TESTES MANUAIS (quando quer testar email real):
+# EMAIL_MODE=PRODUCTION
+
+# PRODUÇÃO (servidor real):
+# EMAIL_MODE=PRODUCTION
+
+# AUTO-DETECÇÃO (se tem credenciais reais, envia real):
+# EMAIL_MODE=AUTO
 ```
 
 ## 💡 Uso Básico
