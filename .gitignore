@@ -186,10 +186,8 @@ $RECYCLE.BIN/
 *~
 
 #Programas que nao quero que vai pra git
-config_email.py
 debug_idade.py
 debug_leilao_lance.py
 update_test_imports.py
 manual_test_email_corrigido.py
 manual_test_email_env.py
-teste_modos_email.py
